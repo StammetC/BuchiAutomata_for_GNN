@@ -10,6 +10,7 @@ generate_dataset(
 - string denoting the desired property (checked for the automaton classification label) - "empty", "min1b" or "infb"
 - int denoting the size of the dataset (number of automata)
 - dict containing the generation parameters. Use predefined "paper_parameters" to follow paper description
+
 )
 
 # "BA_baseGNN.py"
@@ -22,6 +23,7 @@ create_and_train_nn(
 - HIDDEN_CHANNELS: int denoting the number of hidden channels of the GNN
 - trainsrc: the name of the datasetfile in the datasetfolder used for training
 - testsrc: the name of the datasetfile in the datasetfolder used for testing
+
 )
 
 
