@@ -14,7 +14,7 @@ os.environ["PATH"] += os.pathsep + 'C:/Program Files/Graphviz/bin/'
 
 if not os.path.exists("graphicaldata"):
     os.makedirs("graphicaldata")
-dataset_folder = "datasets/test"
+dataset_folder = "datasets"
 if not os.path.exists(dataset_folder):
     os.makedirs(dataset_folder)
 
@@ -445,7 +445,8 @@ def accepting_min1b_check(edge_in: list, edge_out: list, edge_attr: torch.Tensor
     :param edge_attr: list of edge attributes (i.e. the symbol being read)
     :param acc: list of accepting states
     :param start: what node to start the accepting state search
-    :param mode: describing if in start or recursive call of the function (denoting starting at an already found accepting state)
+    :param mode: describing if in start or recursive call of the function
+        (denoting starting at an already found accepting state)
     :param b_was_read: boolean describing if a b has been read in prior function call
     :return: True if given automaton accepts at least one omega-word containing at least one 'b'
     """
@@ -478,7 +479,8 @@ def accepting_min1b_check(edge_in: list, edge_out: list, edge_attr: torch.Tensor
     if (mode == 'from_acc') and (len(reachable_acc) > 0):
         return True
     for s in reachable_acc:
-        can_s_reach_itself = accepting_min1b_check(edge_in, edge_out, edge_attr, [s[0]], start=s[0], mode='from_acc', b_was_read = s[1])
+        can_s_reach_itself = accepting_min1b_check(edge_in, edge_out, edge_attr,
+                                                   [s[0]], start=s[0], mode='from_acc', b_was_read=s[1])
         if can_s_reach_itself:
             return True
     return False
@@ -497,7 +499,8 @@ def accepting_infb_check(edge_in: list, edge_out: list, edge_attr: torch.Tensor,
     :param edge_attr: list of edge attributes (i.e. the symbol being read)
     :param acc: list of accepting states
     :param start: what node to start the accepting state search
-    :param mode: describing if in start or recursive call of the function (denoting starting at an already found accepting state)
+    :param mode: describing if in start or recursive call of the function
+        (denoting starting at an already found accepting state)
     :param b_was_read: boolean describing if a b has been read in prior function call
     :return: True if given automaton accepts at least one omega-word containing infinitely many 'b'
     """
@@ -516,7 +519,7 @@ def accepting_infb_check(edge_in: list, edge_out: list, edge_attr: torch.Tensor,
         all_succ = set([edge_out[i] for i in occurrences(active_state, edge_in)])
         if not b_was_read:
             for i in occurrences(active_state, edge_in):
-                if [0,1] == edge_attr[i].tolist():
+                if [0, 1] == edge_attr[i].tolist():
                     b_was_read = True
         for s in all_succ:
             if not ([s, b_was_read] in done):
@@ -529,7 +532,8 @@ def accepting_infb_check(edge_in: list, edge_out: list, edge_attr: torch.Tensor,
     if (mode == 'from_acc') and (len(reachable_acc) > 0):
         return True
     for s in reachable_acc:
-        can_s_reach_itself = accepting_infb_check(edge_in, edge_out, edge_attr, [s[0]], start=s[0], mode='from_acc', b_was_read = False)
+        can_s_reach_itself = accepting_infb_check(edge_in, edge_out, edge_attr,
+                                                  [s[0]], start=s[0], mode='from_acc', b_was_read=False)
         if can_s_reach_itself:
             return True
     return False
@@ -674,14 +678,14 @@ def generate_bproperty_dataset_no_empty(property: str, automatonparameters: dict
                     check_accept = accepting_infb_check(edge_in, edge_out, edge_attr, acc_states)
                 if not check_accept:
                     y = torch.tensor([0])
-                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc,cycle_acc])
+                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc, cycle_acc])
                     if len(class_by_dist_nonacc[cycle_acc - minacccycle]) <= d/(2 * total_classes):
                         count += 1
                         nonacc_count += 1
                         class_by_dist_nonacc[cycle_acc - minacccycle].append(data)
                 if check_accept:
                     y = torch.tensor([1])
-                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc,cycle_acc])
+                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc, cycle_acc])
                     if len(class_by_dist_acc[cycle_acc - minacccycle]) <= d/(2 * total_classes):
                         count += 1
                         acc_count += 1
@@ -723,8 +727,10 @@ def generate_bproperty_dataset_with_empty(property: str, automatonparameters: di
     while count < d:
         allcount += 1
         if allcount % 2500 == 0:
+            acclens = [len(sl) for sl in class_by_dist_acc]
+            nonacclens = [len(sl) for sl in class_by_dist_nonacc]
             print(f"We have generated {allcount}-many automata so far! "
-                  f"acc: {acc_count}, non-acc: {nonacc_count}"
+                  f"acc: {acc_count} ({acclens}), non-acc: {nonacc_count}({empty_count}/{nonacclens})"
                   )
         edge_index, edge_attr, x, acc_states = generate_nbw_er_eachsymbol(automatonparameters["nmin"],
                                                                           automatonparameters["nmax"],
@@ -743,7 +749,7 @@ def generate_bproperty_dataset_with_empty(property: str, automatonparameters: di
             # max half of the 0-labels should be empty, i.e. 1/4 of total DATASET_SIZE
             if empty_count <= d/4:
                 y = torch.tensor([0])
-                data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[-1,-1])
+                data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[-1, -1])
                 empty_count += 1
                 nonacc_count += 1
                 count += 1
@@ -757,14 +763,14 @@ def generate_bproperty_dataset_with_empty(property: str, automatonparameters: di
                     check_accept = accepting_infb_check(edge_in, edge_out, edge_attr, acc_states)
                 if not check_accept:
                     y = torch.tensor([0])
-                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc,cycle_acc])
+                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc, cycle_acc])
                     if len(class_by_dist_nonacc[cycle_acc-minacccycle]) <= d/(2*2*total_classes):
                         count += 1
                         nonacc_count += 1
                         class_by_dist_nonacc[cycle_acc-minacccycle].append(data)
                 if check_accept:
                     y = torch.tensor([1])
-                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc,cycle_acc])
+                    data = Data(x=x, y=y, edge_index=edge_index, edge_attr=edge_attr, cyclelen=[to_acc, cycle_acc])
                     if len(class_by_dist_acc[cycle_acc-minacccycle]) <= d/(2*total_classes):
                         count += 1
                         acc_count += 1
@@ -780,7 +786,7 @@ def generate_bproperty_dataset_with_empty(property: str, automatonparameters: di
 
 def generate_dataset(property: str, d: int, automatonparameters: dict,
                      minacccycle: int = 1, maxacccycle: int = 3,
-                     containemptyautomata: bool = True, save_to_file: bool = True) -> list:
+                     containemptyautomata: bool = True, save_to_file: bool = True, labeledgefeat: bool = True) -> list:
     """
     Generates a balanced labelled dataset of non-deterministic Büchi automata labelled whether or not they
     satisfy the given property or not: \n
@@ -807,24 +813,34 @@ def generate_dataset(property: str, d: int, automatonparameters: dict,
     elif property == "min1b" or property == "infb":
         if containemptyautomata:
             datalist = generate_bproperty_dataset_with_empty(property, automatonparameters,
-                                                            d, minacccycle=minacccycle, maxacccycle=maxacccycle)
+                                                             d, minacccycle=minacccycle, maxacccycle=maxacccycle)
         else:
             datalist = generate_bproperty_dataset_no_empty(property, automatonparameters,
-                                                          d, minacccycle=minacccycle, maxacccycle=maxacccycle)
+                                                           d, minacccycle=minacccycle, maxacccycle=maxacccycle)
     else:
         print("Please give a valid property: 'empty', 'min1b', 'infb'.")
         datalist = []
         return datalist
+    if labeledgefeat:
+        print(datalist)
+        datalist = [change_edge_features(d) for d in datalist]
+        print(datalist)
     if save_to_file:
         torch.save(datalist, f"./{dataset_folder}/"
                              f"{property}_{d}_{str(automatonparameters['nmin'])}_{str(automatonparameters['nmax'])}")
     return datalist
 
 
+def change_edge_features(kernel):
+    nedge_attr = torch.tensor([float(a[0]) for a in kernel.edge_attr], dtype=torch.float32)
+    return Data(x=kernel.x, y=kernel.y, edge_index=kernel.edge_index, edge_attr=nedge_attr, cyclelen=kernel.cyclelen)
+
+
+
 paper_parameters = {"nmin": 3,
                     "nmax": 9,
-                    "pmin": 0.1,
-                    "pmax": 0.3,
+                    "pmin": 0.05,
+                    "pmax": 0.2,
                     "paccmin": 0.1,
                     "paccmax": 0.15,
                     "s": 2,
@@ -832,5 +848,17 @@ paper_parameters = {"nmin": 3,
                     "featinit": "half"
                     }
 
-dataset = generate_dataset("infb", 20, paper_parameters)
+
+dataset = generate_dataset("infb", 500, paper_parameters)
+dataset = generate_dataset("min1b", 500, paper_parameters)
+dataset = generate_dataset("empty", 500, paper_parameters)
+
+# dataset = generate_dataset("infb", 1000, paper_parameters)
+# dataset = generate_dataset("min1b", 1000, paper_parameters)
+# dataset = generate_dataset("empty", 1000, paper_parameters)
+#
+# dataset = generate_dataset("infb", 50000, paper_parameters)
+# dataset = generate_dataset("min1b", 50000, paper_parameters)
+# dataset = generate_dataset("empty", 50000, paper_parameters)
+
 #save_automata_from_dataset(dataset, "new", True)
