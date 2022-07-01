@@ -20,7 +20,7 @@ from datetime import datetime
 from collections import Counter
 import sys
 
-dataset_folder = "datasets/test"
+dataset_folder = "datasets/paperdatasets/newedgeattr"
 if not os.path.exists("traininggraphs"):
     os.makedirs("traininggraphs")
 if not os.path.exists("results"):
@@ -39,18 +39,18 @@ class BA_GCN(torch.nn.Module):
         super(BA_GCN, self).__init__()
         self.hidden_channels = hidden_channels
         # torch.manual_seed(527)
-        self.conv1 = GCNConv(num_node_features, hidden_channels, add_self_loops=False)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels, add_self_loops=False)
-        self.conv3 = GCNConv(hidden_channels, hidden_channels, add_self_loops=False)
+        self.conv1 = RGCNConv(num_node_features, hidden_channels, 2)
+        self.conv2 = RGCNConv(hidden_channels, hidden_channels, 2)
+        self.conv3 = RGCNConv(hidden_channels, hidden_channels, 2)
         self.lin = Linear(hidden_channels, num_classes)
 
-    def forward(self, x, edge_index, batch):
+    def forward(self, x, edge_index, edge_attr, batch):
         # 1. Obtain node embeddings
-        x = self.conv1(x, edge_index)
+        x = self.conv1(x, edge_index, edge_attr)
         x = x.relu()
-        x = self.conv2(x, edge_index)
+        x = self.conv2(x, edge_index, edge_attr)
         x = x.relu()
-        x = self.conv3(x, edge_index)
+        x = self.conv3(x, edge_index, edge_attr)
         x = x.relu()
         # 2. Readout layer
         x = global_mean_pool(x, batch)  # [batch_size, hidden_channels]
@@ -108,7 +108,7 @@ def train(model, loader):
     model.train()
     for data in loader:  # Iterate in batches over the training dataset.
         feature_start = data.x
-        out = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
+        out = model(data.x, data.edge_index, data.edge_attr, data.batch)  # Perform a single forward pass.
         loss = criterion(out, data.y)  # Compute the loss.
         loss.backward()  # Derive gradients.
         optimizer.step()  # Update parameters based on gradients.
@@ -126,7 +126,7 @@ def test(model, loader):
     for data in loader:  # Iterate in batches over the training/test dataset.
         c_e = 0
         c_ne = 0
-        out = model(data.x, data.edge_index, data.batch)
+        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         errors = ((abs(pred - data.y) == 1).nonzero(as_tuple=True)[0])
         for i in errors:
@@ -148,7 +148,7 @@ def get_erroneous_classified_data(model, loader):
     to_accs = []
     acc_cycles = []
     for data in loader:
-        out = model(data.x, data.edge_index, data.batch)
+        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
         pred = out.argmax(dim=1)  # Use the class with highest probability.
         errors = ((abs(pred - data.y) == 1).nonzero(as_tuple=True)[0])
         for i in errors:
@@ -163,7 +163,7 @@ def get_avg_loss_over_dataset(model, loader):
     criterion = torch.nn.CrossEntropyLoss()
     loss = []
     for data in loader:
-        out = model(data.x, data.edge_index, data.batch)  # Perform a single forward pass.
+        out = model(data.x, data.edge_index, data.edge_attr, data.batch)  # Perform a single forward pass.
         loss.append(criterion(out, data.y))  # Compute the loss.
     return sum(loss) / len(loss)
 
@@ -246,8 +246,8 @@ def create_and_train_nn(epochs: int, batch_size: int, hiddenchannels: int,
         train_model_and_save_stats(model, epochs, trainset, testset, batch_size, save_training_graphs, logging)
         allacs.append(test(model, DataLoader(testset, batch_size=batch_size, shuffle=True))[0])
     if logging and i > 1:
-        log = open("./results/results.txt", "a")
-        log.write(f"========== Accuracies of all {i} trainings ========\n")
+        log = open("./results/newedgeattrresults.txt", "a")
+        log.write(f"Trainset: {trainsrc} Testset: {testsrc} Accuracies: ")
         for a in allacs:
             log.write(str(a*100)+"  ")
         log.write("\n")
@@ -255,11 +255,26 @@ def create_and_train_nn(epochs: int, batch_size: int, hiddenchannels: int,
 
 
 
-EPOCHS = 10
+EPOCHS = 75
 BATCH_SIZE = 125
-HIDDEN_CHANNELS = 50
+HIDDEN_CHANNELS = 20
+mul = 10
 
-create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "empty_10000_3_9", "empty_500_10_25", multiple = 6)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "min1b_250_3_9", "min1b_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "min1b_1000_3_9", "min1b_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "min1b_10000_3_9", "min1b_500_10_25", multiple = mul)
+create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "min1b_50000_3_9", "min1b_500_10_25", multiple = mul)
+#
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "infb_250_3_9", "infb_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "infb_1000_3_9", "infb_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "infb_10000_3_9", "infb_500_10_25", multiple = mul)
+create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "infb_50000_3_9", "infb_500_10_25", multiple = mul)
+#
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "empty_250_3_9", "empty_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "empty_1000_3_9", "empty_500_10_25", multiple = mul)
+# create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "empty_10000_3_9", "empty_500_10_25", multiple = mul)
+create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "empty_50000_3_9", "empty_500_10_25", multiple = mul)
+
 
 #create_and_train_nn(EPOCHS, BATCH_SIZE, HIDDEN_CHANNELS, "infb_10000_3_9", "infb_500_10_25")
 
